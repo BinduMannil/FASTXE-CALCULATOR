@@ -1,0 +1,13 @@
+[project]
+name = "fastxe-calculator"
+version = "0.1.0"
+description = "Pricing and break-even calculator for a Neobank vendor stack"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "openpyxl>=3.1.2",
+    "pypdf>=3.17.0",
+]
+
+[project.scripts]
+fastxe-calculator = "fastxe_calculator.cli:main"
