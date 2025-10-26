@@ -50,7 +50,8 @@ python -m fastxe_calculator \
 ```
 
 The command prints a summary of key metrics to the console and creates an Excel workbook. The
-workbook contains the following tabs:
+workbook contains the following tabs (pass `--no-export` if you wish to skip workbook generation or
+do not have `openpyxl` installed):
 
 - **Fixed Costs** – One-time, annual, subscription, and operational expenses.
 - **Variable Costs** – Per-customer and per-transaction vendor charges.
