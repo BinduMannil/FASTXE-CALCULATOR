@@ -5,7 +5,7 @@ import argparse
 import json
 from decimal import Decimal
 from pathlib import Path
-from typing import Iterable, List
+from typing import Iterable, List, Optional
 
 from .calculator import BreakEvenCalculator
 from .excel import ExportOptions, export_to_workbook
@@ -98,6 +98,11 @@ def build_parser() -> argparse.ArgumentParser:
         default="12-month outlook",
         help="Label used in the workbook summary to describe the analysis period.",
     )
+    parser.add_argument(
+        "--no-export",
+        action="store_true",
+        help="Skip generating the Excel workbook (useful if openpyxl is not installed).",
+    )
     return parser
 
 
@@ -112,7 +117,7 @@ def gather_costs_from_inputs(args: argparse.Namespace) -> List[VendorCost]:
     return costs
 
 
-def main(argv: Iterable[str] | None = None) -> Path:
+def main(argv: Iterable[str] | None = None) -> Optional[Path]:
     parser = build_parser()
     args = parser.parse_args(list(argv) if argv is not None else None)
 
@@ -158,14 +163,23 @@ def main(argv: Iterable[str] | None = None) -> Path:
     print("Projected fixed costs: {0:,.2f}".format(profitability["fixed_costs"]))
     print("Projected profit: {0:,.2f}".format(profitability["profit"]))
 
-    export_path = export_to_workbook(
-        costs,
-        ExportOptions(
-            output_path=args.output,
-            revenue_inputs=revenue_inputs,
-            expected_period_label=args.period_label,
-        ),
-    )
+    if args.no_export:
+        print("Workbook export skipped (no-export flag supplied).")
+        return None
+
+    try:
+        export_path = export_to_workbook(
+            costs,
+            ExportOptions(
+                output_path=args.output,
+                revenue_inputs=revenue_inputs,
+                expected_period_label=args.period_label,
+            ),
+        )
+    except RuntimeError as exc:
+        print(f"Workbook export skipped: {exc}")
+        return None
+
     print(f"Workbook exported to {export_path}")
     return export_path
 
