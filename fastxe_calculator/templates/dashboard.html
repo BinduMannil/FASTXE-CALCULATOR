@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FastXE Calculator Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+    <script src="{{ url_for('static', filename='dashboard.js') }}" defer></script>
+  </head>
+  <body>
+    <main class="container">
+      <header>
+        <h1>FastXE Calculator Dashboard</h1>
+        <p class="lede">
+          Experiment with customer and transaction pricing alongside vendor cost inputs to see the
+          break-even point for your FastXE deployment.
+        </p>
+      </header>
+
+      {% if errors %}
+      <section class="alert" role="alert">
+        <h2>We ran into some issues:</h2>
+        <ul>
+          {% for error in errors %}
+          <li>{{ error }}</li>
+          {% endfor %}
+        </ul>
+      </section>
+      {% endif %}
+
+      <section class="card">
+        <h2>Assumptions &amp; Inputs</h2>
+        <form method="post" class="form">
+          <fieldset class="fieldset">
+            <legend>Revenue assumptions</legend>
+            <div class="form-grid">
+              <label>
+                <span>Expected customers</span>
+                <input
+                  type="number"
+                  min="0"
+                  name="expected_customers"
+                  value="{{ form_values.expected_customers }}"
+                  required
+                />
+              </label>
+              <label>
+                <span>Expected transactions</span>
+                <input
+                  type="number"
+                  min="0"
+                  name="expected_transactions"
+                  value="{{ form_values.expected_transactions }}"
+                  required
+                />
+              </label>
+              <label>
+                <span>Price per customer (USD)</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  name="customer_price"
+                  value="{{ form_values.customer_price }}"
+                  required
+                />
+              </label>
+              <label>
+                <span>Price per transaction (USD)</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  name="transaction_price"
+                  value="{{ form_values.transaction_price }}"
+                  required
+                />
+              </label>
+              <label>
+                <span>Subscription revenue (USD)</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  name="subscription_revenue"
+                  value="{{ form_values.subscription_revenue }}"
+                />
+              </label>
+              <label>
+                <span>Analysis period (months)</span>
+                <input
+                  type="number"
+                  min="1"
+                  name="analysis_period_months"
+                  value="{{ form_values.analysis_period_months }}"
+                  required
+                />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="fieldset">
+            <legend>Cost inputs</legend>
+            <p class="help-text">
+              Add each vendor or internal cost that should be included in the analysis. Amounts are
+              assumed to fall within the selected cost type (for example annual, per-customer, or
+              per-transaction charges).
+            </p>
+            <div class="table-wrapper">
+              <table id="cost-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Vendor / Source</th>
+                    <th scope="col">Cost type</th>
+                    <th scope="col">Description</th>
+                    <th scope="col">Amount (USD)</th>
+                    <th scope="col">Notes</th>
+                    <th scope="col" class="actions">&nbsp;</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in cost_rows %}
+                  <tr>
+                    <td data-label="Vendor">
+                      <input type="text" name="cost_vendor" value="{{ row.vendor }}" placeholder="Vendor name" />
+                    </td>
+                    <td data-label="Type">
+                      <select name="cost_type">
+                        {% for option in cost_type_options %}
+                        <option value="{{ option.value }}" {% if option.value == row.cost_type %}selected{% endif %}>
+                          {{ option.label }}
+                        </option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                    <td data-label="Description">
+                      <input type="text" name="cost_name" value="{{ row.name }}" placeholder="Support staff, vendor fee…" />
+                    </td>
+                    <td data-label="Amount">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        name="cost_amount"
+                        value="{{ row.amount }}"
+                        placeholder="0.00"
+                      />
+                    </td>
+                    <td data-label="Notes">
+                      <textarea name="cost_notes" rows="1" placeholder="Optional">{{ row.notes }}</textarea>
+                    </td>
+                    <td class="actions">
+                      <button type="button" class="remove-cost-row" aria-label="Remove cost">&times;</button>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            <div class="cost-actions">
+              <button type="button" id="add-cost-row" class="secondary">Add another cost</button>
+            </div>
+          </fieldset>
+
+          <div class="submit-row">
+            <button type="submit" class="primary">Calculate break-even metrics</button>
+          </div>
+        </form>
+      </section>
+
+      {% if results %}
+      <section class="results">
+        <h2>Break-even summary</h2>
+        <div class="results-grid">
+          <article class="result-card">
+            <h3>Fixed costs</h3>
+            <p class="metric">{{ results.summary.fixed_costs|currency }}</p>
+            <p class="caption">Total one-time, annual, subscription, and operational expenses.</p>
+          </article>
+          <article class="result-card">
+            <h3>Variable per customer</h3>
+            <p class="metric">{{ results.summary.variable_cost_per_customer|currency }}</p>
+            <p class="caption">Average per-customer vendor fees and servicing costs.</p>
+          </article>
+          <article class="result-card">
+            <h3>Variable per transaction</h3>
+            <p class="metric">{{ results.summary.variable_cost_per_transaction|currency }}</p>
+            <p class="caption">Average per-transaction processing or network costs.</p>
+          </article>
+          <article class="result-card">
+            <h3>Total captured costs</h3>
+            <p class="metric">{{ results.summary.total_costs|currency }}</p>
+            <p class="caption">Combined fixed and unit costs for the selected period.</p>
+          </article>
+        </div>
+
+        <div class="results-grid">
+          <article class="result-card">
+            <h3>Break-even customers</h3>
+            <p class="metric">{{ results.break_even_customers|decimal }}</p>
+            <p class="caption">Customers required at the configured price point to cover fixed costs.</p>
+          </article>
+          <article class="result-card">
+            <h3>Break-even transactions</h3>
+            <p class="metric">{{ results.break_even_transactions|decimal }}</p>
+            <p class="caption">Transactions required at the configured price point to cover fixed costs.</p>
+          </article>
+          <article class="result-card">
+            <h3>Required customer price</h3>
+            <p class="metric">{{ results.required_customer_price|currency }}</p>
+            <p class="caption">Unit price needed per customer based on expected volumes.</p>
+          </article>
+          <article class="result-card">
+            <h3>Required transaction price</h3>
+            <p class="metric">{{ results.required_transaction_price|currency }}</p>
+            <p class="caption">Unit price needed per transaction based on expected volumes.</p>
+          </article>
+        </div>
+
+        <article class="card">
+          <h3>Profitability outlook</h3>
+          <table class="results-table">
+            <tbody>
+              <tr>
+                <th scope="row">Analysis period</th>
+                <td>{{ results.revenue_inputs.analysis_period_months }} months</td>
+              </tr>
+              <tr>
+                <th scope="row">Revenue</th>
+                <td>{{ results.profitability.revenue|currency }}</td>
+              </tr>
+              <tr>
+                <th scope="row">Variable costs</th>
+                <td>{{ results.profitability.variable_costs|currency }}</td>
+              </tr>
+              <tr>
+                <th scope="row">Fixed costs</th>
+                <td>{{ results.profitability.fixed_costs|currency }}</td>
+              </tr>
+              <tr>
+                <th scope="row">Projected profit</th>
+                <td class="highlight">{{ results.profitability.profit|currency }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="caption">Calculated using {{ results.cost_count }} cost item{{ 's' if results.cost_count != 1 else '' }} supplied above.</p>
+        </article>
+      </section>
+      {% endif %}
+    </main>
+
+    <template id="cost-row-template">
+      <tr>
+        <td data-label="Vendor">
+          <input type="text" name="cost_vendor" placeholder="Vendor name" />
+        </td>
+        <td data-label="Type">
+          <select name="cost_type">
+            {% for option in cost_type_options %}
+            <option value="{{ option.value }}">{{ option.label }}</option>
+            {% endfor %}
+          </select>
+        </td>
+        <td data-label="Description">
+          <input type="text" name="cost_name" placeholder="Support staff, vendor fee…" />
+        </td>
+        <td data-label="Amount">
+          <input type="number" min="0" step="0.01" name="cost_amount" placeholder="0.00" />
+        </td>
+        <td data-label="Notes">
+          <textarea name="cost_notes" rows="1" placeholder="Optional"></textarea>
+        </td>
+        <td class="actions">
+          <button type="button" class="remove-cost-row" aria-label="Remove cost">&times;</button>
+        </td>
+      </tr>
+    </template>
+  </body>
+</html>

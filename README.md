@@ -99,3 +99,21 @@ python -m fastxe_calculator --cost "Internal:operational:Customer support:5000" 
 
 The project intentionally keeps logic in pure Python so it can be extended or integrated with other
 dashboarding tools in the future.
+
+## Web dashboard
+
+In addition to the CLI, the repository now ships with a lightweight Flask-based dashboard so you
+can explore pricing scenarios without the terminal. After installing the package, launch the
+development server:
+
+```bash
+python -m fastxe_calculator.web_app --host 0.0.0.0 --port 8000
+```
+
+Then open <http://localhost:8000> in your browser. The interface lets you:
+
+- Provide expected customer and transaction volumes, pricing assumptions, and optional subscription
+  revenue.
+- Capture vendor and operational costs by category (one-time, annual, per-customer, etc.).
+- Instantly view break-even metrics, required pricing, and projected profitability using the same
+  calculation engine as the CLI.
